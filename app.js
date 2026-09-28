@@ -12,6 +12,8 @@ const FAU_BOCA = {
 };
 
 const STORAGE_KEY = "owl-weather-unit";
+const THEME_KEY = "owl-weather-theme";
+const USER_NAME = "Mark Bonner";
 
 // WMO weather interpretation codes → description + day/night icons.
 const WEATHER_CODES = {
@@ -74,6 +76,9 @@ const els = {
   results: $("search-results"),
   locateBtn: $("locate-btn"),
   homeBtn: $("home-btn"),
+  themeToggle: $("theme-toggle"),
+  welcomeTitle: $("welcome-title"),
+  welcomeText: $("welcome-text"),
 };
 
 // ---------- Helpers ----------
@@ -154,6 +159,66 @@ function escapeHtml(str) {
     "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
   }[c]));
 }
+
+// ---------- Welcome ----------
+
+function greeting() {
+  const h = new Date().getHours();
+  if (h < 5) return "Up late";
+  if (h < 12) return "Good morning";
+  if (h < 17) return "Good afternoon";
+  return "Good evening";
+}
+
+// A short, weather-aware tip for the welcome banner.
+function weatherTip(current, daily) {
+  const code = current.weather_code;
+  const hot = state.unit === "celsius" ? 35 : 95;
+  const cold = state.unit === "celsius" ? 10 : 50;
+  if (code >= 95) return "Storms are in the area, so stay safe indoors.";
+  if ((code >= 51 && code <= 67) || (code >= 80 && code <= 82) || daily.precipitation_probability_max[0] >= 50) {
+    return "Grab an umbrella before heading to class.";
+  }
+  if (current.apparent_temperature >= hot) return "It's a hot one. Stay hydrated!";
+  if (daily.uv_index_max[0] >= 8) return "The UV index is very high, so don't forget sunscreen.";
+  if (current.apparent_temperature <= cold) return "Bundle up, it's chilly for Florida!";
+  return "Great day to be an Owl!";
+}
+
+function renderWelcome() {
+  els.welcomeTitle.textContent = `${greeting()}, ${USER_NAME}!`;
+  const data = state.data;
+  if (!data) return;
+  const w = describe(data.current.weather_code, data.current.is_day);
+  els.welcomeText.textContent =
+    `It's ${round(data.current.temperature_2m)}${deg()} and ${w.text.toLowerCase()} in ${state.place.name}. ` +
+    weatherTip(data.current, data.daily);
+}
+
+// ---------- Theme ----------
+
+const systemDark = window.matchMedia("(prefers-color-scheme: dark)");
+
+function currentTheme() {
+  return document.documentElement.getAttribute("data-theme") || (systemDark.matches ? "dark" : "light");
+}
+
+function updateThemeButton() {
+  const next = currentTheme() === "dark" ? "light" : "dark";
+  els.themeToggle.textContent = next === "dark" ? "🌙" : "☀️";
+  els.themeToggle.setAttribute("aria-label", `Switch to ${next} theme`);
+  els.themeToggle.title = `Switch to ${next} theme`;
+}
+
+els.themeToggle.addEventListener("click", () => {
+  const next = currentTheme() === "dark" ? "light" : "dark";
+  document.documentElement.setAttribute("data-theme", next);
+  try { localStorage.setItem(THEME_KEY, next); } catch { /* storage unavailable */ }
+  updateThemeButton();
+});
+
+systemDark.addEventListener("change", updateThemeButton);
+updateThemeButton();
 
 // ---------- API ----------
 
@@ -262,6 +327,7 @@ function render() {
   els.hourlySection.hidden = false;
   els.dailySection.hidden = false;
   document.title = `${round(current.temperature_2m)}${deg()} ${state.place.name} | Owl Weather`;
+  renderWelcome();
 }
 
 async function loadWeather(place = state.place) {
@@ -405,6 +471,7 @@ document.querySelectorAll(".unit-toggle button").forEach((btn) => {
 
 // ---------- Start ----------
 
+renderWelcome();
 loadWeather(FAU_BOCA);
 // Refresh every 15 minutes while the tab is open.
 setInterval(() => loadWeather(), 15 * 60 * 1000);

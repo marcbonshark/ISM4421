@@ -1,21 +1,55 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Owl emblem">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Owl perched on a tree branch">
   <title>Owl Weather emblem</title>
-  <circle cx="32" cy="32" r="31" fill="#003366" stroke="#cc0000" stroke-width="2"/>
-  <!-- ear tufts -->
-  <path d="M16 18 L22 8 L26 20 Z" fill="#cc0000"/>
-  <path d="M48 18 L42 8 L38 20 Z" fill="#cc0000"/>
-  <!-- head/body -->
-  <path d="M14 30 C14 18 22 15 32 15 C42 15 50 18 50 30 C50 44 42 54 32 56 C22 54 14 44 14 30 Z" fill="#cc0000"/>
+  <defs>
+    <clipPath id="badge"><circle cx="32" cy="32" r="30"/></clipPath>
+  </defs>
+
+  <!-- sky badge -->
+  <circle cx="32" cy="32" r="30" fill="#003366"/>
+
+  <g clip-path="url(#badge)">
+    <!-- trunk -->
+    <path d="M45 64 L46.5 40 Q47.5 28 44 12 L51 12 Q53.5 31 52.5 41 L55 64 Z" fill="#a7a9ac"/>
+    <path d="M50 14 Q52.5 31 51.5 41 L53.5 64 L55 64 L52.5 41 Q53.5 29 51 12 Z" fill="#7d8084"/>
+
+    <!-- tree canopy -->
+    <circle cx="52" cy="12" r="12" fill="#1d5a99"/>
+    <circle cx="62" cy="24" r="10" fill="#174f88"/>
+    <circle cx="42" cy="4" r="9" fill="#2566a8"/>
+    <circle cx="47" cy="17" r="5" fill="#174f88"/>
+    <circle cx="55" cy="8" r="4" fill="#2f73b8"/>
+    <circle cx="44" cy="9" r="2.5" fill="#2f73b8"/>
+
+    <!-- branch the owl sits on -->
+    <path d="M0 44.5 Q22 41 47 39.5 L47.5 44.5 Q22 46.5 0 49.5 Z" fill="#a7a9ac"/>
+    <path d="M0 48 Q22 45.2 47.5 43.2 L47.5 44.5 Q22 46.5 0 49.5 Z" fill="#7d8084"/>
+    <!-- twig with a red leaf -->
+    <path d="M8 45 Q6 40 9 36" stroke="#a7a9ac" stroke-width="1.6" fill="none" stroke-linecap="round"/>
+    <path d="M9 36 Q13 33 13 37 Q11 39 9 36 Z" fill="#cc0000"/>
+  </g>
+
+  <!-- owl -->
+  <path d="M15 17 L17.5 7 L22 16 Z" fill="#a30000"/>
+  <path d="M35 17 L32.5 7 L28 16 Z" fill="#a30000"/>
+  <path d="M11 29 C11 18 17 13.5 25 13.5 C33 13.5 39 18 39 29 C39 38.5 34 44.5 25 45.5 C16 44.5 11 38.5 11 29 Z" fill="#cc0000"/>
+  <!-- wings -->
+  <path d="M11.5 28 C8.5 34 10.5 41 16 44 C14 38 13.5 33 11.5 28 Z" fill="#a30000"/>
+  <path d="M38.5 28 C41.5 34 39.5 41 34 44 C36 38 36.5 33 38.5 28 Z" fill="#a30000"/>
   <!-- belly -->
-  <path d="M22 40 C22 36 26 34 32 34 C38 34 42 36 42 40 C42 48 37 52 32 53 C27 52 22 48 22 40 Z" fill="#a7a9ac"/>
-  <path d="M26 42 q2 2 4 0 M34 42 q2 2 4 0 M29 47 q3 2 6 0" stroke="#6b6e72" stroke-width="1.2" fill="none" stroke-linecap="round"/>
+  <ellipse cx="25" cy="37" rx="8" ry="7.5" fill="#d9dadc"/>
+  <path d="M20.5 35 q1.5 1.6 3 0 M26.5 35 q1.5 1.6 3 0 M23.5 39.5 q1.5 1.6 3 0" stroke="#7d8084" stroke-width="1" fill="none" stroke-linecap="round"/>
   <!-- eyes -->
-  <circle cx="24.5" cy="27" r="7" fill="#fff"/>
-  <circle cx="39.5" cy="27" r="7" fill="#fff"/>
-  <circle cx="24.5" cy="27" r="3.4" fill="#003366"/>
-  <circle cx="39.5" cy="27" r="3.4" fill="#003366"/>
-  <circle cx="25.6" cy="25.9" r="1.1" fill="#fff"/>
-  <circle cx="40.6" cy="25.9" r="1.1" fill="#fff"/>
+  <circle cx="19.5" cy="24.5" r="5.6" fill="#fff"/>
+  <circle cx="30.5" cy="24.5" r="5.6" fill="#fff"/>
+  <circle cx="19.8" cy="24.8" r="2.8" fill="#003366"/>
+  <circle cx="30.2" cy="24.8" r="2.8" fill="#003366"/>
+  <circle cx="20.7" cy="23.8" r="0.9" fill="#fff"/>
+  <circle cx="31.1" cy="23.8" r="0.9" fill="#fff"/>
   <!-- beak -->
-  <path d="M29.5 31 L32 36 L34.5 31 Z" fill="#f2b705"/>
+  <path d="M23 28.5 L25 32.5 L27 28.5 Z" fill="#f2b705"/>
+  <!-- talons gripping the branch -->
+  <path d="M19 44.5 q1 2.2 2 0 q1 2.2 2 0 M27 44.5 q1 2.2 2 0 q1 2.2 2 0" stroke="#f2b705" stroke-width="1.4" fill="none" stroke-linecap="round"/>
+
+  <!-- FAU red ring -->
+  <circle cx="32" cy="32" r="30.5" fill="none" stroke="#cc0000" stroke-width="2.5"/>
 </svg>

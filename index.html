@@ -11,6 +11,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
+  <script src="theme.js"></script>
 </head>
 <body>
   <header class="site-header">
@@ -21,13 +22,24 @@
         <div class="brand-sub">Florida Atlantic University</div>
       </div>
     </div>
-    <div class="unit-toggle" role="group" aria-label="Temperature units">
-      <button type="button" data-unit="fahrenheit" class="active">°F</button>
-      <button type="button" data-unit="celsius">°C</button>
+    <div class="header-controls">
+      <button type="button" id="theme-toggle" class="theme-toggle" aria-label="Switch to dark theme" title="Switch to dark theme">🌙</button>
+      <div class="unit-toggle" role="group" aria-label="Temperature units">
+        <button type="button" data-unit="fahrenheit" class="active">°F</button>
+        <button type="button" data-unit="celsius">°C</button>
+      </div>
     </div>
   </header>
 
   <main class="container">
+    <section class="welcome" aria-labelledby="welcome-title">
+      <img src="assets/logo.svg" alt="" class="welcome-logo" width="64" height="64">
+      <div>
+        <h2 id="welcome-title" class="welcome-title">Welcome, Mark Bonner!</h2>
+        <p id="welcome-text" class="welcome-text">Here's your weather from the FAU Boca Raton campus. Go Owls!</p>
+      </div>
+    </section>
+
     <section class="search">
       <form id="search-form" autocomplete="off" role="search">
         <label for="search-input" class="visually-hidden">Search for a city</label>

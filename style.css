@@ -11,17 +11,40 @@
   --border: #d7dee8;
   --radius: 16px;
   --shadow: 0 6px 20px rgba(0, 51, 102, 0.10);
+  --welcome-bg: linear-gradient(135deg, #ffffff 0%, #e3ecf7 100%);
+  --rain: #1f6fc0;
+  --heading: #cc0000;
+  color-scheme: light;
 }
 
+/* Dark theme: follows the system unless the visitor picked a theme,
+   and the header toggle can force it either way. */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
     --bg: #07111f;
     --card: #0f1f33;
     --text: #e8eef6;
     --muted: #9fb0c4;
     --border: #1f3450;
     --shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
+    --welcome-bg: linear-gradient(135deg, #0f1f33 0%, #16304f 100%);
+    --rain: #6fb3ff;
+    --heading: #ff6b6b;
+    color-scheme: dark;
   }
+}
+
+:root[data-theme="dark"] {
+  --bg: #07111f;
+  --card: #0f1f33;
+  --text: #e8eef6;
+  --muted: #9fb0c4;
+  --border: #1f3450;
+  --shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
+  --welcome-bg: linear-gradient(135deg, #0f1f33 0%, #16304f 100%);
+  --rain: #6fb3ff;
+  --heading: #ff6b6b;
+  color-scheme: dark;
 }
 
 * { box-sizing: border-box; }
@@ -65,6 +88,17 @@ a { color: inherit; }
 .brand-title { font-weight: 800; font-size: 1.35rem; letter-spacing: 0.02em; }
 .brand-sub { font-size: 0.8rem; opacity: 0.85; text-transform: uppercase; letter-spacing: 0.08em; }
 
+.header-controls { display: flex; align-items: center; gap: 10px; }
+
+.theme-toggle {
+  width: 40px; height: 40px;
+  border: 0; border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+  font-size: 1.15rem; line-height: 1;
+  cursor: pointer;
+}
+.theme-toggle:hover { background: rgba(255, 255, 255, 0.22); }
+
 .unit-toggle {
   display: flex;
   background: rgba(255, 255, 255, 0.12);
@@ -102,8 +136,24 @@ a { color: inherit; }
   font-size: 1rem;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  color: var(--fau-red);
+  color: var(--heading);
 }
+
+/* Welcome banner */
+.welcome {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 18px 20px;
+  border-radius: var(--radius);
+  background: var(--welcome-bg);
+  border: 1px solid var(--border);
+  border-left: 6px solid var(--fau-red);
+  box-shadow: var(--shadow);
+}
+.welcome-logo { width: 64px; height: 64px; flex: none; }
+.welcome-title { margin: 0; font-size: 1.3rem; color: var(--text); }
+.welcome-text { margin: 4px 0 0; color: var(--muted); }
 
 /* Search */
 .search form {
@@ -204,7 +254,7 @@ a { color: inherit; }
 .hour-time { font-size: 0.8rem; color: var(--muted); font-weight: 600; }
 .hour-icon { font-size: 1.6rem; margin: 4px 0; }
 .hour-temp { font-weight: 700; }
-.hour-pop { font-size: 0.75rem; color: #2f7fd1; min-height: 1em; }
+.hour-pop { font-size: 0.75rem; color: var(--rain); min-height: 1em; }
 
 /* Daily */
 .daily { display: grid; gap: 6px; }
@@ -220,7 +270,7 @@ a { color: inherit; }
 .day-name { font-weight: 700; }
 .day-icon { font-size: 1.5rem; text-align: center; }
 .day-desc { color: var(--muted); font-size: 0.9rem; min-width: 0; }
-.day-desc .pop { color: #2f7fd1; font-weight: 600; white-space: nowrap; }
+.day-desc .pop { color: var(--rain); font-weight: 600; white-space: nowrap; }
 .day-temps { font-weight: 700; white-space: nowrap; }
 .day-temps .lo { color: var(--muted); font-weight: 600; margin-left: 8px; }
 
@@ -236,8 +286,17 @@ a { color: inherit; }
 .site-footer .muted { color: rgba(255, 255, 255, 0.7); }
 
 @media (max-width: 560px) {
-  .brand-title { font-size: 1.1rem; }
-  .brand-sub { font-size: 0.7rem; }
+  .welcome { padding: 14px 16px; gap: 12px; }
+  .welcome-logo { width: 48px; height: 48px; }
+  .welcome-title { font-size: 1.1rem; }
+  .theme-toggle { width: 36px; height: 36px; }
+  .site-header { padding: 12px 16px; }
+  .brand { gap: 8px; }
+  .brand-logo { width: 40px; height: 40px; }
+  .brand-title { font-size: 1.05rem; white-space: nowrap; }
+  .brand-sub { font-size: 0.6rem; white-space: nowrap; letter-spacing: 0.04em; }
+  .header-controls { gap: 6px; }
+  .unit-toggle button { padding: 6px 10px; }
   .current-temp { font-size: 3.5rem; }
   .current-icon { font-size: 3rem; }
   .day { grid-template-columns: 56px 30px 1fr auto; gap: 8px; }

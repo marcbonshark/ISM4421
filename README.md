@@ -12,7 +12,9 @@ Weather and city search come from [Open-Meteo](https://open-meteo.com/), which i
 - City search with suggestions as you type (Open-Meteo Geocoding API)
 - "My location" button (browser geolocation) and a "FAU Boca" button that returns to campus
 - °F / °C toggle; the browser remembers your choice
-- Refreshes every 15 minutes; works on phones; supports dark mode
+- A welcome banner for Mark Bonner, with a greeting for the time of day and a weather tip
+- Light and dark themes: follows your device by default, and the 🌙/☀️ button switches and remembers your choice
+- Refreshes every 15 minutes; works on phones
 - FAU colors: Blue `#003366`, Red `#CC0000`, Silver `#A7A9AC`
 
 ## Project structure
@@ -21,7 +23,8 @@ Weather and city search come from [Open-Meteo](https://open-meteo.com/), which i
 index.html        Page markup
 style.css         FAU-branded styles
 app.js            Open-Meteo calls and rendering
-assets/logo.svg   Owl emblem (logo + favicon)
+assets/logo.svg   Owl-on-a-branch emblem (logo + favicon)
+theme.js          Applies the saved theme before the page draws
 404.html          Not-found page
 netlify.toml      Netlify settings: publish dir, security headers, caching
 ```
@@ -56,7 +59,7 @@ netlify deploy --prod --dir .
 
 ## Using the official FAU logo
 
-`assets/logo.svg` is an original owl emblem drawn in FAU colors. It is not the university's official mark. To use the official FAU logo, download it from FAU's brand resources, save it as `assets/logo.svg`, or save it as a PNG and change the `src`/`href` values in `index.html`. FAU logos are trademarks, so check FAU's brand guidelines for how they may be used.
+`assets/logo.svg` is an original emblem of an owl perched on a tree branch, drawn in FAU colors. It is not the university's official mark. To use the official FAU logo, download it from FAU's brand resources, save it as `assets/logo.svg`, or save it as a PNG and change the `src`/`href` values in `index.html`. FAU logos are trademarks, so check FAU's brand guidelines for how they may be used.
 
 ## Credits
 
