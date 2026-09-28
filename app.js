@@ -13,7 +13,7 @@ const FAU_BOCA = {
 
 const STORAGE_KEY = "owl-weather-unit";
 const THEME_KEY = "owl-weather-theme";
-const USER_NAME = "Mark Bonner";
+const USER_NAME = "Marc Bondurant";
 
 // WMO weather interpretation codes → description + day/night icons.
 const WEATHER_CODES = {

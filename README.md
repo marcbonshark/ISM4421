@@ -12,7 +12,7 @@ Weather and city search come from [Open-Meteo](https://open-meteo.com/), which i
 - City search with suggestions as you type (Open-Meteo Geocoding API)
 - "My location" button (browser geolocation) and a "FAU Boca" button that returns to campus
 - °F / °C toggle; the browser remembers your choice
-- A welcome banner for Mark Bonner, with a greeting for the time of day and a weather tip
+- A welcome banner for Marc Bondurant, with a greeting for the time of day and a weather tip
 - Light and dark themes: follows your device by default, and the 🌙/☀️ button switches and remembers your choice
 - Refreshes every 15 minutes; works on phones
 - FAU colors: Blue `#003366`, Red `#CC0000`, Silver `#A7A9AC`
@@ -24,7 +24,7 @@ index.html        Page markup
 style.css         FAU-branded styles
 app.js            Open-Meteo calls and rendering
 assets/logo.svg   Owl-on-a-branch emblem (logo + favicon)
-theme.js          Applies the saved theme before the page draws
+theme.js          Applies the saved theme before the page draws; logo fallback
 404.html          Not-found page
 netlify.toml      Netlify settings: publish dir, security headers, caching
 ```
@@ -57,9 +57,15 @@ netlify login
 netlify deploy --prod --dir .
 ```
 
-## Using the official FAU logo
+## Logo
 
-`assets/logo.svg` is an original emblem of an owl perched on a tree branch, drawn in FAU colors. It is not the university's official mark. To use the official FAU logo, download it from FAU's brand resources, save it as `assets/logo.svg`, or save it as a PNG and change the `src`/`href` values in `index.html`. FAU logos are trademarks, so check FAU's brand guidelines for how they may be used.
+The header shows the official Florida Atlantic University logo, loaded from
+[Wikimedia Commons](https://commons.wikimedia.org/wiki/File:Florida_Atlantic_University_logo.svg).
+If it can't load, the page falls back to the local owl emblem in `assets/logo.svg`, which is also the browser-tab icon.
+
+To host the FAU logo yourself instead of loading it from Wikimedia, download it into `assets/fau-logo.svg`,
+then change the logo `src` in `index.html` and `404.html` to `assets/fau-logo.svg`.
+The FAU logo is a university trademark. Its use here is for a student class project.
 
 ## Credits
 
