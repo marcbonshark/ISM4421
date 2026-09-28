@@ -3,88 +3,206 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Owl Weather | FAU Boca Raton</title>
-  <meta name="description" content="Live weather for Florida Atlantic University in Boca Raton and anywhere else, powered by Open-Meteo.">
+  <title>Owl Beats | AI Music Generator</title>
+  <meta name="description" content="Generate original songs and instrumentals from a text prompt with the Suno API.">
   <meta name="theme-color" content="#003366">
-  <link rel="icon" href="assets/logo.svg" type="image/svg+xml">
+  <link rel="icon" href="assets/icon.svg" type="image/svg+xml">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
   <script src="theme.js"></script>
 </head>
 <body>
   <header class="site-header">
     <div class="brand">
-      <span class="logo-badge">
-        <img src="https://upload.wikimedia.org/wikipedia/commons/b/b3/Florida_Atlantic_University_logo.svg" data-fallback="assets/logo.svg" alt="Florida Atlantic University" class="brand-logo" width="107" height="46">
-      </span>
-      <div class="brand-title">Owl Weather</div>
+      <img src="assets/icon.svg" alt="" width="36" height="36">
+      <span class="brand-title">Owl Beats</span>
     </div>
     <div class="header-controls">
-      <button type="button" id="theme-toggle" class="theme-toggle" aria-label="Switch to dark theme" title="Switch to dark theme">🌙</button>
-      <div class="unit-toggle" role="group" aria-label="Temperature units">
-        <button type="button" data-unit="fahrenheit" class="active">°F</button>
-        <button type="button" data-unit="celsius">°C</button>
-      </div>
+      <button type="button" id="credits" class="pill" title="Remaining Suno credits (click to refresh)" hidden>Credits: …</button>
+      <button type="button" id="key-btn" class="pill pill-accent">🔑 Add API key</button>
+      <button type="button" id="theme-toggle" class="icon-btn" aria-label="Switch theme">🌙</button>
     </div>
   </header>
 
-  <main class="container">
-    <section class="welcome" aria-labelledby="welcome-title">
-      <div>
-        <h2 id="welcome-title" class="welcome-title">Welcome, Marc Bondurant!</h2>
-        <p id="welcome-text" class="welcome-text">Here's your weather from the FAU Boca Raton campus. Go Owls!</p>
+  <main class="layout">
+    <!-- ============ Create ============ -->
+    <section class="card create" aria-labelledby="create-title">
+      <h1 id="create-title">Create a song</h1>
+      <div id="key-notice" class="notice" hidden>
+        To make music, add your Suno API key. <button type="button" class="link-btn" id="key-notice-btn">Add API key</button>
       </div>
-    </section>
 
-    <section class="search">
-      <form id="search-form" autocomplete="off" role="search">
-        <label for="search-input" class="visually-hidden">Search for a city</label>
-        <input id="search-input" type="search" placeholder="Search a city (e.g. Miami, Tallahassee)" aria-autocomplete="list" aria-controls="search-results">
-        <button type="submit" class="btn btn-primary">Search</button>
-        <button type="button" id="locate-btn" class="btn btn-secondary" title="Use my location">📍 My location</button>
-        <button type="button" id="home-btn" class="btn btn-secondary" title="Back to FAU Boca Raton">🦉 FAU Boca</button>
-        <ul id="search-results" class="search-results" role="listbox" hidden></ul>
+      <div class="tabs" role="tablist" aria-label="Creation mode">
+        <button type="button" role="tab" id="tab-simple" aria-controls="form" aria-selected="true" class="tab active" data-mode="simple">Simple</button>
+        <button type="button" role="tab" id="tab-custom" aria-controls="form" aria-selected="false" class="tab" data-mode="custom">Custom</button>
+      </div>
+
+      <form id="form" novalidate>
+        <p class="hint mode-simple">Describe the song and pick a style. Suno writes the lyrics for you.</p>
+        <p class="hint mode-custom" hidden>Write your own lyrics and set the title, style, length and voice.</p>
+
+        <div class="field mode-simple">
+          <label for="prompt">Song description</label>
+          <textarea id="prompt" rows="4" maxlength="3000" placeholder="An upbeat summer anthem about road-tripping down the Florida coast with friends"></textarea>
+          <div class="counter" data-for="prompt"></div>
+        </div>
+
+        <div class="field mode-custom" hidden>
+          <label for="title">Title <span class="opt">(optional)</span></label>
+          <input id="title" type="text" maxlength="80" placeholder="Coastal Highway">
+        </div>
+
+        <div class="field">
+          <label for="style">Style</label>
+          <input id="style" type="text" maxlength="1000" placeholder="indie pop, bright guitars, female vocals">
+          <div class="chips" id="style-chips" aria-label="Style suggestions"></div>
+        </div>
+
+        <div class="field mode-custom lyrics-field" hidden>
+          <div class="label-row">
+            <label for="lyrics">Lyrics</label>
+            <button type="button" id="ai-lyrics-toggle" class="link-btn">✨ Write lyrics with AI</button>
+          </div>
+          <div id="ai-lyrics" class="ai-lyrics" hidden>
+            <input id="lyrics-prompt" type="text" maxlength="200" placeholder="What should the lyrics be about?">
+            <button type="button" id="lyrics-go" class="btn btn-secondary">Write</button>
+          </div>
+          <textarea id="lyrics" rows="10" maxlength="5000" placeholder="[Verse]&#10;Windows down on A1A&#10;&#10;[Chorus]&#10;..."></textarea>
+          <div class="counter" data-for="lyrics"></div>
+        </div>
+
+        <div class="row">
+          <label class="switch">
+            <input type="checkbox" id="instrumental">
+            <span class="slider" aria-hidden="true"></span>
+            Instrumental (no vocals)
+          </label>
+        </div>
+
+        <div class="grid-2">
+          <div class="field">
+            <label for="model">Model</label>
+            <select id="model">
+              <option value="V6">V6 (recommended)</option>
+              <option value="V6_WILD">V6 Wild (more creative)</option>
+              <option value="V6_MINI">V6 Mini (fastest)</option>
+            </select>
+          </div>
+          <div class="field mode-custom vocal-field" hidden>
+            <label for="vocal">Voice</label>
+            <select id="vocal">
+              <option value="">Any</option>
+              <option value="f">Female</option>
+              <option value="m">Male</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="field mode-custom" hidden>
+          <label for="duration">Length: <output id="duration-out">2:00</output></label>
+          <input id="duration" type="range" min="10" max="360" step="5" value="120">
+        </div>
+
+        <details class="advanced mode-custom" hidden>
+          <summary>Advanced</summary>
+          <div class="field">
+            <label for="negative">Exclude styles <span class="opt">(optional)</span></label>
+            <input id="negative" type="text" maxlength="1000" placeholder="heavy metal, autotune">
+          </div>
+          <div class="field">
+            <label for="style-weight">Style adherence: <output id="style-weight-out">0.50</output></label>
+            <input id="style-weight" type="range" min="0" max="1" step="0.05" value="0.5">
+          </div>
+          <div class="field">
+            <label for="weirdness">Weirdness: <output id="weirdness-out">0.50</output></label>
+            <input id="weirdness" type="range" min="0" max="1" step="0.05" value="0.5">
+          </div>
+          <div class="field">
+            <label for="variety">Variety between the two versions</label>
+            <select id="variety">
+              <option value="0">Off · same style</option>
+              <option value="1" selected>Normal</option>
+              <option value="2">High</option>
+              <option value="3">Extra</option>
+              <option value="4">Max</option>
+            </select>
+          </div>
+        </details>
+
+        <div id="form-error" class="notice notice-error" role="alert" hidden></div>
+        <button type="submit" id="generate" class="btn btn-primary btn-lg">🎵 Generate music</button>
+        <p class="fineprint">Each request makes two versions. Tracks usually start streaming within a minute and finish in 2–3 minutes. Suno keeps files for 14 days, so download the ones you like.</p>
       </form>
     </section>
 
-    <div id="status" class="status" role="status" aria-live="polite"></div>
-
-    <section id="current" class="card current" hidden>
-      <div class="current-top">
-        <div>
-          <h1 id="place-name">Boca Raton, Florida</h1>
-          <p id="place-time" class="muted"></p>
-        </div>
-        <div class="current-icon" id="current-icon" aria-hidden="true"></div>
+    <!-- ============ Library ============ -->
+    <section class="card library" aria-labelledby="library-title">
+      <div class="library-head">
+        <h2 id="library-title">Your tracks</h2>
+        <button type="button" id="clear-all" class="link-btn" hidden>Clear all</button>
       </div>
-      <div class="current-main">
-        <div class="current-temp" id="current-temp">--</div>
-        <div>
-          <div class="current-desc" id="current-desc"></div>
-          <div class="muted" id="current-feels"></div>
-          <div class="muted" id="current-hilo"></div>
-        </div>
+      <div id="empty" class="empty">
+        <div class="empty-icon" aria-hidden="true">🎧</div>
+        <p>Your songs will show up here.</p>
       </div>
-      <dl class="details" id="current-details"></dl>
-    </section>
-
-    <section id="hourly-section" class="card" hidden>
-      <h2>Next 24 hours</h2>
-      <div class="hourly" id="hourly"></div>
-    </section>
-
-    <section id="daily-section" class="card" hidden>
-      <h2>7-day forecast</h2>
-      <div class="daily" id="daily"></div>
+      <ul id="tasks" class="tasks"></ul>
     </section>
   </main>
 
   <footer class="site-footer">
-    <p>Go Owls! 🦉 Weather data by <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo.com</a> (CC BY 4.0).</p>
-    <p class="muted small">Student project for ISM 4421. Not an official Florida Atlantic University website.</p>
+    Music by <a href="https://sunoapi.org" target="_blank" rel="noopener">Suno API</a> · ISM 4421 student project ·
+    <a href="weather/">Owl Weather</a>
   </footer>
+
+  <!-- Extend dialog -->
+  <dialog id="extend-dialog">
+    <form method="dialog" id="extend-form">
+      <h3>Extend “<span id="extend-name"></span>”</h3>
+      <p class="hint">Suno continues the song from the point you choose and makes two new versions.</p>
+      <div class="field">
+        <label for="extend-at">Continue from: <output id="extend-at-out">0:00</output></label>
+        <input id="extend-at" type="range" min="1" max="240" step="1" value="60">
+      </div>
+      <div class="field">
+        <label for="extend-style">Style</label>
+        <input id="extend-style" type="text" maxlength="1000">
+      </div>
+      <div class="field">
+        <label for="extend-title">Title</label>
+        <input id="extend-title" type="text" maxlength="80">
+      </div>
+      <div class="field" id="extend-lyrics-field">
+        <label for="extend-lyrics">Lyrics for the new part <span class="opt">(optional)</span></label>
+        <textarea id="extend-lyrics" rows="5" maxlength="5000" placeholder="[Bridge]&#10;..."></textarea>
+      </div>
+      <div class="dialog-actions">
+        <button type="button" class="btn btn-secondary" id="extend-cancel">Cancel</button>
+        <button type="submit" class="btn btn-primary" value="go">Extend</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- API key dialog -->
+  <dialog id="key-dialog">
+    <form method="dialog" id="key-form">
+      <h3>Your Suno API key</h3>
+      <p class="hint">Get a key at <a href="https://sunoapi.org/api-key" target="_blank" rel="noopener">sunoapi.org/api-key</a>. It is saved only in this browser and sent only to api.sunoapi.org.</p>
+      <div class="field">
+        <label for="api-key">API key</label>
+        <input id="api-key" type="password" autocomplete="off" spellcheck="false" placeholder="Paste your key">
+      </div>
+      <label class="check"><input type="checkbox" id="show-key"> Show key</label>
+      <div class="dialog-actions">
+        <button type="button" class="btn btn-secondary" id="key-remove">Remove key</button>
+        <button type="button" class="btn btn-secondary" id="key-cancel">Cancel</button>
+        <button type="submit" class="btn btn-primary" value="go">Save</button>
+      </div>
+    </form>
+  </dialog>
+
+  <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
 
   <script src="app.js"></script>
 </body>

@@ -1,477 +1,757 @@
-// Owl Weather — FAU-themed weather app powered by Open-Meteo (no API key needed).
+// Owl Beats: a one-page music generator for the Suno API (https://docs.sunoapi.org).
+// Everything runs in the browser. The visitor pastes their own API key, which is
+// kept in localStorage and sent only to api.sunoapi.org.
 
-const FORECAST_URL = "https://api.open-meteo.com/v1/forecast";
-const GEOCODE_URL = "https://geocoding-api.open-meteo.com/v1/search";
+"use strict";
 
-// Default location: Florida Atlantic University, Boca Raton campus.
-const FAU_BOCA = {
-  name: "FAU Boca Raton",
-  region: "Florida, United States",
-  latitude: 26.3728,
-  longitude: -80.1024,
+const API = "https://api.sunoapi.org/api/v1";
+// Suno requires a callBackUrl on every task. This page polls for results
+// instead, so the callback goes to a placeholder that nobody reads.
+const CALLBACK_URL = "https://example.com/suno-callback";
+const POLL_MS = 5000;
+const GIVE_UP_MS = 15 * 60 * 1000;
+
+const KEY_STORE = "owlbeats-api-key";
+const TASK_STORE = "owlbeats-tasks";
+const THEME_STORE = "owlbeats-theme";
+
+const STYLES = [
+  "Pop", "Hip-hop", "R&B", "Rock", "Indie", "EDM", "Lo-fi", "Jazz",
+  "Country", "Reggaeton", "Classical", "Cinematic", "Acoustic", "Synthwave",
+];
+
+const FAILED = {
+  CREATE_TASK_FAILED: "Suno could not create the task.",
+  GENERATE_AUDIO_FAILED: "Suno could not generate audio for this request.",
+  CALLBACK_EXCEPTION: "Suno reported an error while finishing the task.",
+  SENSITIVE_WORD_ERROR: "The prompt or lyrics contain words Suno doesn't allow. Try rewording.",
 };
 
-const STORAGE_KEY = "owl-weather-unit";
-const THEME_KEY = "owl-weather-theme";
-const USER_NAME = "Marc Bondurant";
-
-// WMO weather interpretation codes → description + day/night icons.
-const WEATHER_CODES = {
-  0: ["Clear sky", "☀️", "🌙"],
-  1: ["Mainly clear", "🌤️", "🌙"],
-  2: ["Partly cloudy", "⛅", "☁️"],
-  3: ["Overcast", "☁️", "☁️"],
-  45: ["Fog", "🌫️", "🌫️"],
-  48: ["Depositing rime fog", "🌫️", "🌫️"],
-  51: ["Light drizzle", "🌦️", "🌧️"],
-  53: ["Drizzle", "🌦️", "🌧️"],
-  55: ["Dense drizzle", "🌧️", "🌧️"],
-  56: ["Light freezing drizzle", "🌧️", "🌧️"],
-  57: ["Freezing drizzle", "🌧️", "🌧️"],
-  61: ["Light rain", "🌦️", "🌧️"],
-  63: ["Rain", "🌧️", "🌧️"],
-  65: ["Heavy rain", "🌧️", "🌧️"],
-  66: ["Light freezing rain", "🌧️", "🌧️"],
-  67: ["Freezing rain", "🌧️", "🌧️"],
-  71: ["Light snow", "🌨️", "🌨️"],
-  73: ["Snow", "🌨️", "🌨️"],
-  75: ["Heavy snow", "❄️", "❄️"],
-  77: ["Snow grains", "🌨️", "🌨️"],
-  80: ["Light showers", "🌦️", "🌧️"],
-  81: ["Showers", "🌧️", "🌧️"],
-  82: ["Violent showers", "⛈️", "⛈️"],
-  85: ["Light snow showers", "🌨️", "🌨️"],
-  86: ["Snow showers", "❄️", "❄️"],
-  95: ["Thunderstorm", "⛈️", "⛈️"],
-  96: ["Thunderstorm with hail", "⛈️", "⛈️"],
-  99: ["Severe thunderstorm with hail", "⛈️", "⛈️"],
+const API_ERRORS = {
+  400: "Suno rejected the request (invalid parameters).",
+  401: "Your API key was rejected. Check it and try again.",
+  404: "Suno couldn't find that endpoint.",
+  405: "Rate limit reached. Wait a moment and try again.",
+  413: "The prompt or lyrics are too long.",
+  429: "You're out of Suno credits. Top up at sunoapi.org.",
+  430: "Too many requests. Please try again shortly.",
+  455: "Suno is under maintenance. Try again later.",
+  500: "Suno had a server error. Try again.",
 };
 
-const state = {
-  unit: loadUnit(),
-  place: FAU_BOCA,
-  data: null,
-  searchResults: [],
-  activeResult: -1,
-};
-
-const $ = (id) => document.getElementById(id);
+const $ = (sel) => document.querySelector(sel);
 const els = {
-  status: $("status"),
-  current: $("current"),
-  hourlySection: $("hourly-section"),
-  dailySection: $("daily-section"),
-  placeName: $("place-name"),
-  placeTime: $("place-time"),
-  currentIcon: $("current-icon"),
-  currentTemp: $("current-temp"),
-  currentDesc: $("current-desc"),
-  currentFeels: $("current-feels"),
-  currentHilo: $("current-hilo"),
-  currentDetails: $("current-details"),
-  hourly: $("hourly"),
-  daily: $("daily"),
-  form: $("search-form"),
-  input: $("search-input"),
-  results: $("search-results"),
-  locateBtn: $("locate-btn"),
-  homeBtn: $("home-btn"),
-  themeToggle: $("theme-toggle"),
-  welcomeTitle: $("welcome-title"),
-  welcomeText: $("welcome-text"),
+  form: $("#form"),
+  tabs: document.querySelectorAll(".tab"),
+  prompt: $("#prompt"),
+  title: $("#title"),
+  style: $("#style"),
+  chips: $("#style-chips"),
+  lyrics: $("#lyrics"),
+  instrumental: $("#instrumental"),
+  model: $("#model"),
+  vocal: $("#vocal"),
+  duration: $("#duration"),
+  durationOut: $("#duration-out"),
+  negative: $("#negative"),
+  styleWeight: $("#style-weight"),
+  styleWeightOut: $("#style-weight-out"),
+  weirdness: $("#weirdness"),
+  weirdnessOut: $("#weirdness-out"),
+  variety: $("#variety"),
+  formError: $("#form-error"),
+  generate: $("#generate"),
+  aiToggle: $("#ai-lyrics-toggle"),
+  aiBox: $("#ai-lyrics"),
+  lyricsPrompt: $("#lyrics-prompt"),
+  lyricsGo: $("#lyrics-go"),
+  tasks: $("#tasks"),
+  empty: $("#empty"),
+  clearAll: $("#clear-all"),
+  credits: $("#credits"),
+  keyBtn: $("#key-btn"),
+  keyNotice: $("#key-notice"),
+  keyNoticeBtn: $("#key-notice-btn"),
+  keyDialog: $("#key-dialog"),
+  keyForm: $("#key-form"),
+  keyInput: $("#api-key"),
+  showKey: $("#show-key"),
+  keyRemove: $("#key-remove"),
+  keyCancel: $("#key-cancel"),
+  extendDialog: $("#extend-dialog"),
+  extendForm: $("#extend-form"),
+  extendName: $("#extend-name"),
+  extendAt: $("#extend-at"),
+  extendAtOut: $("#extend-at-out"),
+  extendStyle: $("#extend-style"),
+  extendTitle: $("#extend-title"),
+  extendLyrics: $("#extend-lyrics"),
+  extendLyricsField: $("#extend-lyrics-field"),
+  extendCancel: $("#extend-cancel"),
+  themeToggle: $("#theme-toggle"),
+  toast: $("#toast"),
 };
 
-// ---------- Helpers ----------
+let mode = "simple";
+let tasks = loadTasks();
+let extendTarget = null;
+let polling = false;
 
-function loadUnit() {
+// ---------- storage ----------
+
+function store(key, value) {
   try {
-    return localStorage.getItem(STORAGE_KEY) === "celsius" ? "celsius" : "fahrenheit";
+    if (value === null) localStorage.removeItem(key);
+    else localStorage.setItem(key, value);
+  } catch { /* private mode: keep going without saving */ }
+}
+function read(key) {
+  try { return localStorage.getItem(key); } catch { return null; }
+}
+function loadTasks() {
+  try { return JSON.parse(read(TASK_STORE)) || []; } catch { return []; }
+}
+function saveTasks() {
+  store(TASK_STORE, JSON.stringify(tasks.slice(0, 50)));
+}
+const getKey = () => (read(KEY_STORE) || "").trim();
+
+// ---------- Suno API ----------
+
+class ApiError extends Error {}
+
+async function suno(path, body) {
+  const key = getKey();
+  if (!key) {
+    openKeyDialog();
+    throw new ApiError("Add your Suno API key first.");
+  }
+  let res;
+  try {
+    res = await fetch(`${API}${path}`, {
+      method: body ? "POST" : "GET",
+      headers: {
+        Authorization: `Bearer ${key}`,
+        Accept: "application/json",
+        ...(body ? { "Content-Type": "application/json" } : {}),
+      },
+      body: body ? JSON.stringify(body) : undefined,
+    });
   } catch {
-    return "fahrenheit";
+    throw new ApiError("Couldn't reach api.sunoapi.org. Check your connection and try again.");
+  }
+  let data = null;
+  try { data = await res.json(); } catch { /* non-JSON error page */ }
+  const code = data && typeof data.code === "number" ? data.code : res.status;
+  if (!res.ok || code !== 200) {
+    const msg = API_ERRORS[code] || (data && data.msg) || `Request failed (${res.status}).`;
+    const detail = data && data.msg && API_ERRORS[code] && data.msg !== "success" ? ` (${data.msg})` : "";
+    throw new ApiError(msg + detail);
+  }
+  return data.data;
+}
+
+// Suno's responses have used both snake_case and camelCase over time.
+function normalizeTrack(t) {
+  return {
+    id: t.id,
+    title: t.title || "Untitled",
+    tags: t.tags || "",
+    duration: Number(t.duration) || 0,
+    audio: t.audio_url || t.audioUrl || t.source_audio_url || t.sourceAudioUrl || "",
+    stream: t.stream_audio_url || t.streamAudioUrl || t.source_stream_audio_url || t.sourceStreamAudioUrl || "",
+    image: t.image_url || t.imageUrl || t.source_image_url || t.sourceImageUrl || "",
+    lyrics: t.prompt || "",
+  };
+}
+
+async function refreshCredits() {
+  if (!getKey()) return;
+  els.credits.hidden = false;
+  els.credits.textContent = "Credits: …";
+  try {
+    const credits = await suno("/generate/credit");
+    els.credits.textContent = `Credits: ${Number(credits).toLocaleString()}`;
+  } catch (err) {
+    els.credits.textContent = "Credits: ?";
+    els.credits.title = err.message;
   }
 }
 
-function saveUnit(unit) {
-  try { localStorage.setItem(STORAGE_KEY, unit); } catch { /* storage unavailable */ }
+// ---------- form ----------
+
+function setMode(next) {
+  mode = next;
+  els.tabs.forEach((t) => {
+    const on = t.dataset.mode === mode;
+    t.classList.toggle("active", on);
+    t.setAttribute("aria-selected", String(on));
+  });
+  document.querySelectorAll(".mode-simple").forEach((el) => (el.hidden = mode !== "simple"));
+  document.querySelectorAll(".mode-custom").forEach((el) => (el.hidden = mode !== "custom"));
+  syncInstrumental();
+  hideError();
 }
 
-function describe(code, isDay = 1) {
-  const entry = WEATHER_CODES[code] || ["Unknown", "🌡️", "🌡️"];
-  return { text: entry[0], icon: isDay ? entry[1] : entry[2] };
+function syncInstrumental() {
+  const inst = els.instrumental.checked;
+  if (mode === "custom") {
+    $(".lyrics-field").hidden = inst;
+    $(".vocal-field").hidden = inst;
+  }
 }
 
-// Open-Meteo returns local times ("2026-09-28T14:00") when timezone=auto.
-// Parse the parts directly so the browser's own time zone never shifts them.
-function parseLocal(iso) {
-  const [date, time = "00:00"] = iso.split("T");
-  const [y, m, d] = date.split("-").map(Number);
-  const [hh, mm] = time.split(":").map(Number);
-  return { y, m, d, hh, mm, date: new Date(Date.UTC(y, m - 1, d, hh, mm)) };
+function buildRequest() {
+  const style = els.style.value.trim();
+  const instrumental = els.instrumental.checked;
+  const model = els.model.value;
+
+  if (mode === "simple") {
+    const prompt = els.prompt.value.trim();
+    if (!prompt && !style) throw new ApiError("Describe your song or pick a style.");
+    if (!style) throw new ApiError("Pick a style (tap a suggestion or type your own).");
+    return { customMode: false, instrumental, model, style, ...(prompt ? { prompt } : {}) };
+  }
+
+  const lyrics = instrumental ? "" : els.lyrics.value.trim();
+  const negativeTags = els.negative.value.trim();
+  if (!style && !lyrics && !negativeTags) throw new ApiError("Add a style or some lyrics.");
+  if (!instrumental && !lyrics) {
+    throw new ApiError("Add lyrics, use ✨ Write lyrics with AI, or switch on Instrumental.");
+  }
+  const req = {
+    customMode: true,
+    instrumental,
+    model,
+    style,
+    title: els.title.value.trim(),
+    duration: Number(els.duration.value),
+    styleWeight: Number(els.styleWeight.value),
+    weirdnessConstraint: Number(els.weirdness.value),
+    variety: Number(els.variety.value),
+  };
+  if (!req.style) delete req.style;
+  if (!req.title) delete req.title;
+  if (lyrics) req.lyrics = lyrics;
+  if (negativeTags) req.negativeTags = negativeTags;
+  if (!instrumental && els.vocal.value) req.vocalGender = els.vocal.value;
+  return req;
 }
 
-function fmtHour(iso) {
-  const { hh } = parseLocal(iso);
-  const h12 = hh % 12 || 12;
-  return `${h12} ${hh < 12 ? "AM" : "PM"}`;
+async function onGenerate(e) {
+  e.preventDefault();
+  hideError();
+  let request;
+  try {
+    request = buildRequest();
+  } catch (err) {
+    return showError(err.message);
+  }
+  if (!getKey()) return openKeyDialog();
+
+  setBusy(els.generate, true, "Sending…");
+  try {
+    const data = await suno("/generate", { ...request, callBackUrl: CALLBACK_URL });
+    addTask({
+      taskId: data.taskId,
+      kind: "generate",
+      label: request.title || request.prompt || request.style || "New song",
+      request,
+    });
+    toast("Generating! Your tracks will appear on the right.");
+    refreshCredits();
+  } catch (err) {
+    showError(err.message);
+  } finally {
+    setBusy(els.generate, false);
+  }
 }
 
-function fmtClock(iso) {
-  const { hh, mm } = parseLocal(iso);
-  const h12 = hh % 12 || 12;
-  return `${h12}:${String(mm).padStart(2, "0")} ${hh < 12 ? "AM" : "PM"}`;
+async function onWriteLyrics() {
+  const prompt = els.lyricsPrompt.value.trim();
+  if (!prompt) return els.lyricsPrompt.focus();
+  setBusy(els.lyricsGo, true, "Writing…");
+  hideError();
+  try {
+    const { taskId } = await suno("/lyrics", { prompt, callBackUrl: CALLBACK_URL });
+    const started = Date.now();
+    while (Date.now() - started < 3 * 60 * 1000) {
+      await sleep(3000);
+      const info = await suno(`/lyrics/record-info?taskId=${encodeURIComponent(taskId)}`);
+      if (FAILED[info.status]) throw new ApiError(FAILED[info.status]);
+      const options = (info.response && info.response.data) || [];
+      const done = options.find((o) => o.text && (o.status === "complete" || info.status === "SUCCESS"));
+      if (done) {
+        els.lyrics.value = done.text;
+        if (!els.title.value && done.title) els.title.value = done.title;
+        updateCounters();
+        els.aiBox.hidden = true;
+        toast("Lyrics ready. Edit them however you like.");
+        refreshCredits();
+        return;
+      }
+    }
+    throw new ApiError("Lyrics took too long. Try again.");
+  } catch (err) {
+    showError(err.message);
+  } finally {
+    setBusy(els.lyricsGo, false);
+  }
 }
 
-function fmtWeekday(iso, style = "long") {
-  return parseLocal(iso).date.toLocaleDateString("en-US", { weekday: style, timeZone: "UTC" });
+// ---------- tasks & polling ----------
+
+function addTask(task) {
+  tasks.unshift({ ...task, createdAt: Date.now(), status: "PENDING", tracks: [], error: "" });
+  saveTasks();
+  render();
+  poll();
 }
 
-function fmtFullDate(iso) {
-  return parseLocal(iso).date.toLocaleDateString("en-US", {
-    weekday: "long", month: "long", day: "numeric", timeZone: "UTC",
+const isActive = (t) => !t.error && t.status !== "SUCCESS";
+
+async function poll() {
+  if (polling) return;
+  polling = true;
+  try {
+    while (tasks.some(isActive) && getKey()) {
+      for (const task of tasks.filter(isActive)) {
+        await checkTask(task);
+      }
+      saveTasks();
+      render();
+      if (tasks.some(isActive)) await sleep(POLL_MS);
+    }
+  } finally {
+    polling = false;
+  }
+}
+
+async function checkTask(task) {
+  if (Date.now() - task.createdAt > GIVE_UP_MS) {
+    task.error = "Timed out waiting for Suno. Refresh later or try again.";
+    return;
+  }
+  let info;
+  try {
+    info = await suno(`/generate/record-info?taskId=${encodeURIComponent(task.taskId)}`);
+  } catch (err) {
+    task.lastError = err.message; // transient: keep polling
+    return;
+  }
+  task.lastError = "";
+  task.status = info.status || task.status;
+  const raw = (info.response && (info.response.sunoData || info.response.data)) || [];
+  if (raw.length) task.tracks = raw.map(normalizeTrack);
+  if (FAILED[task.status]) {
+    // A callback error can still leave finished audio behind.
+    if (task.tracks.some((t) => t.audio)) task.status = "SUCCESS";
+    else task.error = info.errorMessage || FAILED[task.status];
+  }
+}
+
+const STATUS_TEXT = {
+  PENDING: "Queued…",
+  TEXT_SUCCESS: "Writing lyrics done, composing…",
+  FIRST_SUCCESS: "First version ready, finishing the second…",
+  SUCCESS: "Done",
+};
+
+// ---------- rendering ----------
+
+function render() {
+  els.empty.hidden = tasks.length > 0;
+  els.clearAll.hidden = tasks.length === 0;
+  els.tasks.replaceChildren(...tasks.map(renderTask));
+}
+
+function renderTask(task) {
+  const li = el("li", "task");
+  const head = el("div", "task-head");
+  const info = el("div", "task-info");
+  const label = el("div", "task-label", (task.kind === "extend" ? "↪ Extension of " : "") + truncate(task.label, 90));
+  const meta = el("div", "task-meta");
+  const badge = el("span", "badge");
+  if (task.error) {
+    badge.classList.add("badge-error");
+    badge.textContent = "Failed";
+  } else if (task.status === "SUCCESS") {
+    badge.classList.add("badge-done");
+    badge.textContent = "Ready";
+  } else {
+    badge.classList.add("badge-working");
+    badge.textContent = STATUS_TEXT[task.status] || "Working…";
+  }
+  meta.append(badge, el("span", "", timeAgo(task.createdAt)));
+  info.append(label, meta);
+
+  const actions = el("div", "task-actions");
+  if (task.request && task.kind === "generate") {
+    actions.append(button("Reuse", "link-btn", () => reuse(task.request), "Load these settings into the form"));
+  }
+  actions.append(button("✕", "icon-btn small", () => removeTask(task.taskId), "Remove from list"));
+  head.append(info, actions);
+  li.append(head);
+
+  if (task.error) li.append(el("p", "task-error", task.error));
+  else if (task.lastError) li.append(el("p", "task-warn", `Retrying: ${task.lastError}`));
+
+  if (isActive(task) && !task.tracks.length) {
+    li.append(el("div", "progress"));
+  }
+
+  if (task.tracks.length) {
+    const list = el("div", "tracks");
+    task.tracks.forEach((t, i) => list.append(renderTrack(task, t, i)));
+    li.append(list);
+  }
+  return li;
+}
+
+function renderTrack(task, t, i) {
+  const card = el("article", "track");
+  const art = el("div", "art");
+  if (t.image) {
+    const img = document.createElement("img");
+    img.src = t.image;
+    img.alt = "";
+    img.loading = "lazy";
+    art.append(img);
+  } else {
+    art.textContent = "🎵";
+  }
+
+  const body = el("div", "track-body");
+  body.append(el("h3", "track-title", `${t.title}${task.tracks.length > 1 ? ` · v${i + 1}` : ""}`));
+  const sub = [t.tags, t.duration ? fmtTime(t.duration) : ""].filter(Boolean).join(" · ");
+  if (sub) body.append(el("p", "track-sub", truncate(sub, 120)));
+
+  const src = t.audio || t.stream;
+  if (src) {
+    const audio = document.createElement("audio");
+    audio.controls = true;
+    audio.preload = "none";
+    audio.src = src;
+    audio.addEventListener("play", () => {
+      document.querySelectorAll("audio").forEach((a) => a !== audio && a.pause());
+    });
+    body.append(audio);
+    if (!t.audio) body.append(el("p", "track-sub", "Streaming preview. The full-quality file is still finishing."));
+  } else {
+    body.append(el("div", "progress"));
+  }
+
+  const actions = el("div", "track-actions");
+  if (t.audio) {
+    const dl = el("a", "btn btn-secondary btn-sm", "⬇ MP3");
+    dl.href = t.audio;
+    dl.download = `${safeName(t.title)}.mp3`;
+    dl.target = "_blank";
+    dl.rel = "noopener";
+    actions.append(dl);
+    if (t.id) actions.append(button("↪ Extend", "btn btn-secondary btn-sm", () => openExtend(task, t)));
+  }
+  if (t.lyrics && !(task.request && task.request.instrumental)) {
+    const details = document.createElement("details");
+    details.className = "lyrics-view";
+    const summary = document.createElement("summary");
+    summary.textContent = "Lyrics";
+    const pre = el("pre", "", t.lyrics);
+    const copy = button("Copy", "link-btn", async () => {
+      try {
+        await navigator.clipboard.writeText(t.lyrics);
+        toast("Lyrics copied.");
+      } catch { toast("Couldn't copy. Select the text instead."); }
+    });
+    details.append(summary, copy, pre);
+    body.append(actions, details);
+  } else {
+    body.append(actions);
+  }
+  card.append(art, body);
+  return card;
+}
+
+function removeTask(taskId) {
+  tasks = tasks.filter((t) => t.taskId !== taskId);
+  saveTasks();
+  render();
+}
+
+function reuse(req) {
+  setMode(req.customMode ? "custom" : "simple");
+  els.style.value = req.style || "";
+  els.instrumental.checked = Boolean(req.instrumental);
+  els.model.value = ["V6", "V6_WILD", "V6_MINI"].includes(req.model) ? req.model : "V6";
+  if (req.customMode) {
+    els.title.value = req.title || "";
+    els.lyrics.value = req.lyrics || "";
+    els.negative.value = req.negativeTags || "";
+    els.vocal.value = req.vocalGender || "";
+    if (req.duration) els.duration.value = req.duration;
+    if (req.styleWeight !== undefined) els.styleWeight.value = req.styleWeight;
+    if (req.weirdnessConstraint !== undefined) els.weirdness.value = req.weirdnessConstraint;
+    if (req.variety !== undefined) els.variety.value = req.variety;
+  } else {
+    els.prompt.value = req.prompt || "";
+  }
+  syncInstrumental();
+  updateOutputs();
+  updateCounters();
+  els.form.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+// ---------- extend ----------
+
+function openExtend(task, track) {
+  extendTarget = { task, track };
+  const max = Math.max(2, Math.floor(track.duration || 120) - 1);
+  els.extendName.textContent = track.title;
+  els.extendAt.max = max;
+  els.extendAt.value = max;
+  els.extendStyle.value = track.tags || (task.request && task.request.style) || "";
+  els.extendTitle.value = track.title;
+  els.extendLyrics.value = "";
+  const instrumental = Boolean(task.request && task.request.instrumental);
+  els.extendLyricsField.hidden = instrumental;
+  updateOutputs();
+  els.extendDialog.showModal();
+}
+
+async function onExtend(e) {
+  e.preventDefault();
+  if (!extendTarget) return;
+  const { task, track } = extendTarget;
+  const instrumental = Boolean(task.request && task.request.instrumental);
+  const body = {
+    audioId: track.id,
+    taskId: task.taskId,
+    model: (task.request && task.request.model) || "V6",
+    instrumental,
+    continueAt: Number(els.extendAt.value),
+    style: els.extendStyle.value.trim(),
+    title: els.extendTitle.value.trim(),
+    callBackUrl: CALLBACK_URL,
+  };
+  const lyrics = els.extendLyrics.value.trim();
+  if (!instrumental && lyrics) body.lyrics = lyrics;
+  for (const k of ["style", "title"]) if (!body[k]) delete body[k];
+
+  const submit = els.extendForm.querySelector('button[type="submit"]');
+  setBusy(submit, true, "Sending…");
+  try {
+    const data = await suno("/generate/extend", body);
+    els.extendDialog.close();
+    addTask({
+      taskId: data.taskId,
+      kind: "extend",
+      label: track.title,
+      request: { instrumental, model: body.model, style: body.style },
+    });
+    toast("Extending! New versions will appear in your list.");
+    refreshCredits();
+  } catch (err) {
+    toast(err.message, true);
+  } finally {
+    setBusy(submit, false);
+  }
+}
+
+// ---------- API key ----------
+
+function openKeyDialog() {
+  els.keyInput.value = getKey();
+  els.keyInput.type = "password";
+  els.showKey.checked = false;
+  els.keyRemove.hidden = !getKey();
+  if (!els.keyDialog.open) els.keyDialog.showModal();
+  els.keyInput.focus();
+}
+
+function syncKeyUi() {
+  const has = Boolean(getKey());
+  els.keyBtn.textContent = has ? "🔑 API key" : "🔑 Add API key";
+  els.keyBtn.classList.toggle("pill-accent", !has);
+  els.keyNotice.hidden = has;
+  els.credits.hidden = !has;
+}
+
+function onSaveKey(e) {
+  e.preventDefault();
+  const key = els.keyInput.value.trim();
+  if (!key) return els.keyInput.focus();
+  store(KEY_STORE, key);
+  els.keyDialog.close();
+  syncKeyUi();
+  refreshCredits();
+  poll();
+  toast("API key saved in this browser.");
+}
+
+function onRemoveKey() {
+  store(KEY_STORE, null);
+  els.keyDialog.close();
+  syncKeyUi();
+  toast("API key removed from this browser.");
+}
+
+// ---------- helpers ----------
+
+function el(tag, cls, text) {
+  const node = document.createElement(tag);
+  if (cls) node.className = cls;
+  if (text !== undefined) node.textContent = text;
+  return node;
+}
+function button(text, cls, onClick, title) {
+  const b = el("button", cls, text);
+  b.type = "button";
+  if (title) {
+    b.title = title;
+    b.setAttribute("aria-label", title);
+  }
+  b.addEventListener("click", onClick);
+  return b;
+}
+function setBusy(btn, busy, text) {
+  if (busy) {
+    btn.dataset.label = btn.textContent;
+    btn.textContent = text;
+    btn.disabled = true;
+  } else {
+    btn.textContent = btn.dataset.label || btn.textContent;
+    btn.disabled = false;
+  }
+}
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const truncate = (s, n) => (s.length > n ? `${s.slice(0, n - 1)}…` : s);
+const safeName = (s) => s.replace(/[^\w\- ]+/g, "").trim().replace(/\s+/g, "-") || "track";
+function fmtTime(sec) {
+  const s = Math.round(sec);
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+}
+function timeAgo(ts) {
+  const m = Math.round((Date.now() - ts) / 60000);
+  if (m < 1) return "just now";
+  if (m < 60) return `${m} min ago`;
+  const h = Math.round(m / 60);
+  if (h < 24) return `${h} h ago`;
+  return new Date(ts).toLocaleDateString();
+}
+function showError(msg) {
+  els.formError.textContent = msg;
+  els.formError.hidden = false;
+}
+function hideError() {
+  els.formError.hidden = true;
+}
+let toastTimer;
+function toast(msg, isError) {
+  els.toast.textContent = msg;
+  els.toast.classList.toggle("toast-error", Boolean(isError));
+  els.toast.hidden = false;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => (els.toast.hidden = true), 4000);
+}
+function updateOutputs() {
+  els.durationOut.textContent = fmtTime(Number(els.duration.value));
+  els.styleWeightOut.textContent = Number(els.styleWeight.value).toFixed(2);
+  els.weirdnessOut.textContent = Number(els.weirdness.value).toFixed(2);
+  els.extendAtOut.textContent = fmtTime(Number(els.extendAt.value));
+}
+function updateCounters() {
+  document.querySelectorAll(".counter").forEach((c) => {
+    const input = document.getElementById(c.dataset.for);
+    c.textContent = `${input.value.length} / ${input.maxLength}`;
   });
 }
 
-function compass(deg) {
-  const dirs = ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE", "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"];
-  return dirs[Math.round(deg / 22.5) % 16];
-}
-
-function uvLabel(uv) {
-  if (uv < 3) return "Low";
-  if (uv < 6) return "Moderate";
-  if (uv < 8) return "High";
-  if (uv < 11) return "Very high";
-  return "Extreme";
-}
-
-const round = (n) => Math.round(n);
-// Open-Meteo reports miles per hour as "mp/h".
-const speedUnit = (u) => (u === "mp/h" ? "mph" : u);
-const deg = () => (state.unit === "celsius" ? "°C" : "°F");
-
-function setStatus(message, isError = false) {
-  els.status.textContent = message;
-  els.status.classList.toggle("error", isError);
-}
-
-function escapeHtml(str) {
-  return String(str).replace(/[&<>"']/g, (c) => ({
-    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
-  }[c]));
-}
-
-// ---------- Welcome ----------
-
-function greeting() {
-  const h = new Date().getHours();
-  if (h < 5) return "Up late";
-  if (h < 12) return "Good morning";
-  if (h < 17) return "Good afternoon";
-  return "Good evening";
-}
-
-// A short, weather-aware tip for the welcome banner.
-function weatherTip(current, daily) {
-  const code = current.weather_code;
-  const hot = state.unit === "celsius" ? 35 : 95;
-  const cold = state.unit === "celsius" ? 10 : 50;
-  if (code >= 95) return "Storms are in the area, so stay safe indoors.";
-  if ((code >= 51 && code <= 67) || (code >= 80 && code <= 82) || daily.precipitation_probability_max[0] >= 50) {
-    return "Grab an umbrella before heading to class.";
-  }
-  if (current.apparent_temperature >= hot) return "It's a hot one. Stay hydrated!";
-  if (daily.uv_index_max[0] >= 8) return "The UV index is very high, so don't forget sunscreen.";
-  if (current.apparent_temperature <= cold) return "Bundle up, it's chilly for Florida!";
-  return "Great day to be an Owl!";
-}
-
-function renderWelcome() {
-  els.welcomeTitle.textContent = `${greeting()}, ${USER_NAME}!`;
-  const data = state.data;
-  if (!data) return;
-  const w = describe(data.current.weather_code, data.current.is_day);
-  els.welcomeText.textContent =
-    `It's ${round(data.current.temperature_2m)}${deg()} and ${w.text.toLowerCase()} in ${state.place.name}. ` +
-    weatherTip(data.current, data.daily);
-}
-
-// ---------- Theme ----------
-
-const systemDark = window.matchMedia("(prefers-color-scheme: dark)");
+// ---------- theme ----------
 
 function currentTheme() {
-  return document.documentElement.getAttribute("data-theme") || (systemDark.matches ? "dark" : "light");
+  const set = document.documentElement.getAttribute("data-theme");
+  if (set) return set;
+  return matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+}
+function syncThemeButton() {
+  const dark = currentTheme() === "dark";
+  els.themeToggle.textContent = dark ? "☀️" : "🌙";
+  els.themeToggle.setAttribute("aria-label", dark ? "Switch to light theme" : "Switch to dark theme");
+  els.themeToggle.title = els.themeToggle.getAttribute("aria-label");
 }
 
-function updateThemeButton() {
-  const next = currentTheme() === "dark" ? "light" : "dark";
-  els.themeToggle.textContent = next === "dark" ? "🌙" : "☀️";
-  els.themeToggle.setAttribute("aria-label", `Switch to ${next} theme`);
-  els.themeToggle.title = `Switch to ${next} theme`;
+// ---------- wire up ----------
+
+STYLES.forEach((s) => {
+  const chip = button(s, "chip", () => {
+    const parts = els.style.value.split(",").map((p) => p.trim()).filter(Boolean);
+    const i = parts.findIndex((p) => p.toLowerCase() === s.toLowerCase());
+    if (i >= 0) parts.splice(i, 1);
+    else parts.push(s);
+    els.style.value = parts.join(", ");
+    syncChips();
+  });
+  els.chips.append(chip);
+});
+function syncChips() {
+  const parts = els.style.value.toLowerCase().split(",").map((p) => p.trim());
+  els.chips.querySelectorAll(".chip").forEach((c) => {
+    const on = parts.includes(c.textContent.toLowerCase());
+    c.classList.toggle("active", on);
+    c.setAttribute("aria-pressed", String(on));
+  });
 }
 
+els.tabs.forEach((t) => t.addEventListener("click", () => setMode(t.dataset.mode)));
+els.form.addEventListener("submit", onGenerate);
+els.instrumental.addEventListener("change", syncInstrumental);
+els.style.addEventListener("input", syncChips);
+[els.duration, els.styleWeight, els.weirdness, els.extendAt].forEach((r) => r.addEventListener("input", updateOutputs));
+[els.prompt, els.lyrics].forEach((t) => t.addEventListener("input", updateCounters));
+els.aiToggle.addEventListener("click", () => {
+  els.aiBox.hidden = !els.aiBox.hidden;
+  if (!els.aiBox.hidden) els.lyricsPrompt.focus();
+});
+els.lyricsGo.addEventListener("click", onWriteLyrics);
+els.lyricsPrompt.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") {
+    e.preventDefault();
+    onWriteLyrics();
+  }
+});
+els.clearAll.addEventListener("click", () => {
+  if (confirm("Remove all tracks from this list? (Downloaded files are not affected.)")) {
+    tasks = [];
+    saveTasks();
+    render();
+  }
+});
+els.credits.addEventListener("click", refreshCredits);
+els.keyBtn.addEventListener("click", openKeyDialog);
+els.keyNoticeBtn.addEventListener("click", openKeyDialog);
+els.keyForm.addEventListener("submit", onSaveKey);
+els.keyRemove.addEventListener("click", onRemoveKey);
+els.keyCancel.addEventListener("click", () => els.keyDialog.close());
+els.showKey.addEventListener("change", () => (els.keyInput.type = els.showKey.checked ? "text" : "password"));
+els.extendForm.addEventListener("submit", onExtend);
+els.extendCancel.addEventListener("click", () => els.extendDialog.close());
 els.themeToggle.addEventListener("click", () => {
   const next = currentTheme() === "dark" ? "light" : "dark";
   document.documentElement.setAttribute("data-theme", next);
-  try { localStorage.setItem(THEME_KEY, next); } catch { /* storage unavailable */ }
-  updateThemeButton();
+  store(THEME_STORE, next);
+  syncThemeButton();
 });
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change", syncThemeButton);
 
-systemDark.addEventListener("change", updateThemeButton);
-updateThemeButton();
+// Refresh the "x min ago" labels.
+setInterval(() => !polling && tasks.length && render(), 60000);
 
-// ---------- API ----------
-
-async function fetchForecast(place, unit) {
-  const params = new URLSearchParams({
-    latitude: place.latitude,
-    longitude: place.longitude,
-    current: [
-      "temperature_2m", "relative_humidity_2m", "apparent_temperature", "is_day",
-      "precipitation", "weather_code", "cloud_cover", "pressure_msl",
-      "wind_speed_10m", "wind_direction_10m", "wind_gusts_10m",
-    ].join(","),
-    hourly: ["temperature_2m", "precipitation_probability", "weather_code", "is_day"].join(","),
-    daily: [
-      "weather_code", "temperature_2m_max", "temperature_2m_min",
-      "precipitation_probability_max", "sunrise", "sunset", "uv_index_max",
-    ].join(","),
-    temperature_unit: unit,
-    wind_speed_unit: unit === "celsius" ? "kmh" : "mph",
-    precipitation_unit: unit === "celsius" ? "mm" : "inch",
-    timezone: "auto",
-    forecast_days: 7,
-  });
-  const res = await fetch(`${FORECAST_URL}?${params}`);
-  if (!res.ok) throw new Error(`Forecast request failed (${res.status})`);
-  return res.json();
-}
-
-async function searchPlaces(query) {
-  const params = new URLSearchParams({ name: query, count: 6, language: "en", format: "json" });
-  const res = await fetch(`${GEOCODE_URL}?${params}`);
-  if (!res.ok) throw new Error(`Search failed (${res.status})`);
-  const json = await res.json();
-  return (json.results || []).map((r) => ({
-    name: r.name,
-    region: [r.admin1, r.country].filter(Boolean).join(", "),
-    latitude: r.latitude,
-    longitude: r.longitude,
-  }));
-}
-
-// ---------- Rendering ----------
-
-function render() {
-  const data = state.data;
-  if (!data) return;
-  const { current, current_units: cu, hourly, daily } = data;
-  const now = describe(current.weather_code, current.is_day);
-
-  els.placeName.textContent = state.place.region
-    ? `${state.place.name}, ${state.place.region.split(",")[0]}`
-    : state.place.name;
-  els.placeTime.textContent = `${fmtFullDate(current.time)} · Updated ${fmtClock(current.time)} local time`;
-  els.currentIcon.textContent = now.icon;
-  els.currentTemp.textContent = `${round(current.temperature_2m)}${deg()}`;
-  els.currentDesc.textContent = now.text;
-  els.currentFeels.textContent = `Feels like ${round(current.apparent_temperature)}${deg()}`;
-  els.currentHilo.textContent =
-    `High ${round(daily.temperature_2m_max[0])}${deg()} · Low ${round(daily.temperature_2m_min[0])}${deg()}`;
-
-  const details = [
-    ["Humidity", `${round(current.relative_humidity_2m)}%`],
-    ["Wind", `${round(current.wind_speed_10m)} ${speedUnit(cu.wind_speed_10m)} ${compass(current.wind_direction_10m)}`],
-    ["Gusts", `${round(current.wind_gusts_10m)} ${speedUnit(cu.wind_gusts_10m)}`],
-    ["Precipitation", `${current.precipitation} ${cu.precipitation}`],
-    ["Cloud cover", `${round(current.cloud_cover)}%`],
-    ["Pressure", `${round(current.pressure_msl)} hPa`],
-    ["UV index", `${round(daily.uv_index_max[0])} · ${uvLabel(daily.uv_index_max[0])}`],
-    ["Sunrise", fmtClock(daily.sunrise[0])],
-    ["Sunset", fmtClock(daily.sunset[0])],
-  ];
-  els.currentDetails.innerHTML = details
-    .map(([k, v]) => `<div><dt>${k}</dt><dd>${escapeHtml(v)}</dd></div>`)
-    .join("");
-
-  // Hourly: start at the current local hour, show the next 24.
-  const currentHour = current.time.slice(0, 13) + ":00";
-  let start = hourly.time.findIndex((t) => t >= currentHour);
-  if (start < 0) start = 0;
-  els.hourly.innerHTML = hourly.time.slice(start, start + 24).map((t, i) => {
-    const idx = start + i;
-    const w = describe(hourly.weather_code[idx], hourly.is_day[idx]);
-    const pop = hourly.precipitation_probability[idx];
-    return `
-      <div class="hour${i === 0 ? " now" : ""}">
-        <div class="hour-time">${i === 0 ? "Now" : fmtHour(t)}</div>
-        <div class="hour-icon" title="${w.text}">${w.icon}</div>
-        <div class="hour-temp">${round(hourly.temperature_2m[idx])}°</div>
-        <div class="hour-pop">${pop ? `💧${pop}%` : ""}</div>
-      </div>`;
-  }).join("");
-
-  els.daily.innerHTML = daily.time.map((t, i) => {
-    const w = describe(daily.weather_code[i]);
-    const pop = daily.precipitation_probability_max[i];
-    return `
-      <div class="day">
-        <div class="day-name">${i === 0 ? "Today" : fmtWeekday(t, "short")}</div>
-        <div class="day-icon" aria-hidden="true">${w.icon}</div>
-        <div class="day-desc">${w.text}${pop ? ` · <span class="pop">💧${pop}%</span>` : ""}</div>
-        <div class="day-temps">${round(daily.temperature_2m_max[i])}°<span class="lo">${round(daily.temperature_2m_min[i])}°</span></div>
-      </div>`;
-  }).join("");
-
-  els.current.hidden = false;
-  els.hourlySection.hidden = false;
-  els.dailySection.hidden = false;
-  document.title = `${round(current.temperature_2m)}${deg()} ${state.place.name} | Owl Weather`;
-  renderWelcome();
-}
-
-async function loadWeather(place = state.place) {
-  state.place = place;
-  setStatus(`Loading weather for ${place.name}…`);
-  try {
-    state.data = await fetchForecast(place, state.unit);
-    render();
-    setStatus("");
-  } catch (err) {
-    console.error(err);
-    setStatus("Couldn't load the weather right now. Please try again in a moment.", true);
-  }
-}
-
-// ---------- Search ----------
-
-function showResults(results) {
-  state.searchResults = results;
-  state.activeResult = -1;
-  if (!results.length) {
-    els.results.innerHTML = `<li class="muted">No matching places found.</li>`;
-  } else {
-    els.results.innerHTML = results.map((r, i) => `
-      <li role="option" data-index="${i}" aria-selected="false">
-        <strong>${escapeHtml(r.name)}</strong>
-        <div class="muted">${escapeHtml(r.region)}</div>
-      </li>`).join("");
-  }
-  els.results.hidden = false;
-}
-
-function hideResults() {
-  els.results.hidden = true;
-  state.activeResult = -1;
-}
-
-function selectResult(index) {
-  const place = state.searchResults[index];
-  if (!place) return;
-  hideResults();
-  els.input.value = "";
-  loadWeather(place);
-}
-
-function highlight(index) {
-  const items = els.results.querySelectorAll("li[role=option]");
-  items.forEach((li, i) => li.setAttribute("aria-selected", String(i === index)));
-  state.activeResult = index;
-}
-
-let searchTimer;
-els.input.addEventListener("input", () => {
-  clearTimeout(searchTimer);
-  const q = els.input.value.trim();
-  if (q.length < 2) return hideResults();
-  searchTimer = setTimeout(async () => {
-    try {
-      showResults(await searchPlaces(q));
-    } catch (err) {
-      console.error(err);
-    }
-  }, 300);
-});
-
-els.input.addEventListener("keydown", (e) => {
-  const count = state.searchResults.length;
-  if (els.results.hidden || !count) return;
-  if (e.key === "ArrowDown") {
-    e.preventDefault();
-    highlight((state.activeResult + 1) % count);
-  } else if (e.key === "ArrowUp") {
-    e.preventDefault();
-    highlight((state.activeResult - 1 + count) % count);
-  } else if (e.key === "Escape") {
-    hideResults();
-  }
-});
-
-els.form.addEventListener("submit", async (e) => {
-  e.preventDefault();
-  if (state.activeResult >= 0) return selectResult(state.activeResult);
-  const q = els.input.value.trim();
-  if (!q) return;
-  try {
-    const results = await searchPlaces(q);
-    if (results.length) {
-      state.searchResults = results;
-      selectResult(0);
-    } else {
-      showResults([]);
-    }
-  } catch (err) {
-    console.error(err);
-    setStatus("Search is unavailable right now.", true);
-  }
-});
-
-els.results.addEventListener("click", (e) => {
-  const li = e.target.closest("li[data-index]");
-  if (li) selectResult(Number(li.dataset.index));
-});
-
-document.addEventListener("click", (e) => {
-  if (!els.form.contains(e.target)) hideResults();
-});
-
-// ---------- Buttons ----------
-
-els.homeBtn.addEventListener("click", () => loadWeather(FAU_BOCA));
-
-els.locateBtn.addEventListener("click", () => {
-  if (!navigator.geolocation) {
-    setStatus("Your browser doesn't support location lookup.", true);
-    return;
-  }
-  setStatus("Finding your location…");
-  navigator.geolocation.getCurrentPosition(
-    (pos) => loadWeather({
-      name: "My location",
-      region: "",
-      latitude: Number(pos.coords.latitude.toFixed(4)),
-      longitude: Number(pos.coords.longitude.toFixed(4)),
-    }),
-    () => setStatus("Couldn't get your location. Check your browser's location permission.", true),
-    { timeout: 10000 },
-  );
-});
-
-document.querySelectorAll(".unit-toggle button").forEach((btn) => {
-  btn.classList.toggle("active", btn.dataset.unit === state.unit);
-  btn.addEventListener("click", () => {
-    if (btn.dataset.unit === state.unit) return;
-    state.unit = btn.dataset.unit;
-    saveUnit(state.unit);
-    document.querySelectorAll(".unit-toggle button")
-      .forEach((b) => b.classList.toggle("active", b === btn));
-    loadWeather();
-  });
-});
-
-// ---------- Start ----------
-
-renderWelcome();
-loadWeather(FAU_BOCA);
-// Refresh every 15 minutes while the tab is open.
-setInterval(() => loadWeather(), 15 * 60 * 1000);
+setMode("simple");
+syncThemeButton();
+syncKeyUi();
+syncChips();
+updateOutputs();
+updateCounters();
+render();
+refreshCredits();
+poll();
