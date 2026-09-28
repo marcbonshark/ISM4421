@@ -1,0 +1,34 @@
+# Used only when a Netlify site deploys from the repository root (no base
+# directory). The site then serves a home page at / that links to both apps:
+#   /music/    Owl Beats
+#   /weather/  Owl Weather
+# To deploy one app as its own site instead, set the Netlify base directory
+# to "music" or "weather"; that folder's own netlify.toml then applies.
+
+[build]
+  publish = "."
+  command = ""
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Permissions-Policy = "geolocation=(self), camera=(), microphone=()"
+    Content-Security-Policy = "default-src 'self'; script-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: https:; media-src 'self' https: blob:; connect-src https://api.sunoapi.org https://api.open-meteo.com https://geocoding-api.open-meteo.com; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
+
+[[headers]]
+  for = "/*.html"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
+
+[[headers]]
+  for = "/*.css"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
+
+[[headers]]
+  for = "/*.js"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"

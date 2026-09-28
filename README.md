@@ -8,7 +8,12 @@ This repository holds two separate web apps. Each lives in its own folder with i
 | **Owl Beats** 🎵 | [`music/`](music/) | AI music generator using the Suno API. Visitors enter their own API key. |
 | **Owl Weather** 🦉 | [`weather/`](weather/) | FAU-themed weather app using Open-Meteo (no key needed). |
 
-## Deploying a project to Netlify
+## Deploying to Netlify
+
+**One site for both (simplest):** import the repo with no base directory. The site then has a
+home page at `/` linking to `/music/` and `/weather/`.
+
+**Separate sites:**
 
 1. At https://app.netlify.com choose **Add new site → Import an existing project → GitHub**.
 2. Select `marcbonshark/ism4421` and branch `main`.
