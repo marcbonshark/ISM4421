@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Owl emblem">
+  <title>Owl Weather emblem</title>
+  <circle cx="32" cy="32" r="31" fill="#003366" stroke="#cc0000" stroke-width="2"/>
+  <!-- ear tufts -->
+  <path d="M16 18 L22 8 L26 20 Z" fill="#cc0000"/>
+  <path d="M48 18 L42 8 L38 20 Z" fill="#cc0000"/>
+  <!-- head/body -->
+  <path d="M14 30 C14 18 22 15 32 15 C42 15 50 18 50 30 C50 44 42 54 32 56 C22 54 14 44 14 30 Z" fill="#cc0000"/>
+  <!-- belly -->
+  <path d="M22 40 C22 36 26 34 32 34 C38 34 42 36 42 40 C42 48 37 52 32 53 C27 52 22 48 22 40 Z" fill="#a7a9ac"/>
+  <path d="M26 42 q2 2 4 0 M34 42 q2 2 4 0 M29 47 q3 2 6 0" stroke="#6b6e72" stroke-width="1.2" fill="none" stroke-linecap="round"/>
+  <!-- eyes -->
+  <circle cx="24.5" cy="27" r="7" fill="#fff"/>
+  <circle cx="39.5" cy="27" r="7" fill="#fff"/>
+  <circle cx="24.5" cy="27" r="3.4" fill="#003366"/>
+  <circle cx="39.5" cy="27" r="3.4" fill="#003366"/>
+  <circle cx="25.6" cy="25.9" r="1.1" fill="#fff"/>
+  <circle cx="40.6" cy="25.9" r="1.1" fill="#fff"/>
+  <!-- beak -->
+  <path d="M29.5 31 L32 36 L34.5 31 Z" fill="#f2b705"/>
+</svg>
