@@ -1,6 +1,7 @@
 // Owl Beats: a one-page music generator for the Suno API (https://docs.sunoapi.org).
 // Everything runs in the browser. The visitor pastes their own API key, which is
 // kept in localStorage and sent only to api.sunoapi.org.
+// auth.js handles email login and calls startApp() once someone is signed in.
 
 "use strict";
 
@@ -11,8 +12,10 @@ const CALLBACK_URL = "https://example.com/suno-callback";
 const POLL_MS = 5000;
 const GIVE_UP_MS = 15 * 60 * 1000;
 
-const KEY_STORE = "owlbeats-api-key";
-const TASK_STORE = "owlbeats-tasks";
+// Per-user storage keys; startApp() adds the signed-in user's id so people
+// sharing a browser don't see each other's key or tracks.
+let KEY_STORE = "owlbeats-api-key";
+let TASK_STORE = "owlbeats-tasks";
 const THEME_STORE = "owlbeats-theme";
 
 const STYLES = [
@@ -93,7 +96,7 @@ const els = {
 };
 
 let mode = "simple";
-let tasks = loadTasks();
+let tasks = [];
 let extendTarget = null;
 let polling = false;
 
@@ -748,10 +751,29 @@ setInterval(() => !polling && tasks.length && render(), 60000);
 
 setMode("simple");
 syncThemeButton();
-syncKeyUi();
 syncChips();
 updateOutputs();
 updateCounters();
-render();
-refreshCredits();
-poll();
+
+let started = false;
+window.startApp = function startApp(userId) {
+  if (started) return;
+  started = true;
+  const legacyKey = KEY_STORE;
+  const legacyTasks = TASK_STORE;
+  KEY_STORE = `${legacyKey}:${userId}`;
+  TASK_STORE = `${legacyTasks}:${userId}`;
+  // Data saved before login existed goes to the first account that signs in here.
+  for (const [from, to] of [[legacyKey, KEY_STORE], [legacyTasks, TASK_STORE]]) {
+    const old = read(from);
+    if (old !== null) {
+      if (read(to) === null) store(to, old);
+      store(from, null);
+    }
+  }
+  tasks = loadTasks();
+  syncKeyUi();
+  render();
+  refreshCredits();
+  poll();
+};

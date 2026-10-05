@@ -5,13 +5,36 @@ Describe a song (or write your own lyrics), pick a style, and get two full versi
 
 ## Using it
 
-1. Open the site and click **🔑 Add API key**.
-2. Paste your Suno API key (get one at https://sunoapi.org/api-key) and click **Save**.
-3. Describe your song, pick a style, and click **Generate music**.
+1. Open the site and sign in with your email and password (or click **Create an account**).
+2. Click **🔑 Add API key**.
+3. Paste your Suno API key (get one at https://sunoapi.org/api-key) and click **Save**.
+4. Describe your song, pick a style, and click **Generate music**.
 
 The key is stored only in your browser (localStorage) and is sent only to `api.sunoapi.org`.
 Every visitor uses their own key and credits. Use **Remove key** in the key dialog to delete it
 (do this on shared computers).
+
+## Login (Supabase)
+
+Email and password login uses [Supabase Auth](https://supabase.com/docs/guides/auth) on the project
+`fpqrnrtxbrfnghpwawbl`. The project URL and publishable key are in `config.js`. The publishable key is
+designed to be public.
+
+- **Sign in**, **Create an account** (with email confirmation), **Forgot password?** (emails a reset
+  link that opens a "Choose a new password" screen), and **Sign out** in the header.
+- Each account gets its own saved Suno key and track list in the browser, so people sharing a
+  computer don't see each other's songs. Data saved before login existed moves to the first account
+  that signs in on that browser.
+- Every signup also gets a row in `public.profiles` (id, email), created by the `on_auth_user_created`
+  trigger. Row-level security lets each user read and update only their own row.
+
+The login screen is a gate in the browser, not server-side protection: the page's code is public.
+That's fine here because the app has no private server data and each person uses their own Suno key.
+
+**One-time Supabase setting:** in the Supabase dashboard go to **Authentication → URL Configuration**
+and set **Site URL** to your Netlify address (for example `https://your-site.netlify.app/music/`, or
+`https://your-site.netlify.app/` if the site's base directory is `music`). Add the same address under
+**Redirect URLs**. Without it, confirmation and password-reset emails link to `localhost`.
 
 ## Features
 
@@ -47,6 +70,9 @@ placeholder callback URL.
 index.html        Page markup
 style.css         Styles (FAU blue and red, light/dark)
 app.js            Suno API calls, polling, rendering
+auth.js           Email login screen (Supabase Auth)
+config.js         Supabase project URL and publishable key
+vendor/supabase.js  Supabase JS client v2.117.2 (browser build, kept local)
 theme.js          Applies the saved theme before the page draws
 assets/icon.svg   App icon
 404.html          Not-found page

@@ -431,3 +431,40 @@ dialog::backdrop { background: rgba(0, 20, 40, 0.55); }
 .toast-error { background: #b00020; }
 
 .site-footer { text-align: center; color: var(--muted); font-size: 0.8rem; padding: 16px; }
+
+/* ---------- login ---------- */
+body.locked .layout,
+body.locked .site-footer,
+body.locked #credits,
+body.locked #key-btn { display: none !important; }
+
+.auth-screen {
+  flex: 1;
+  display: grid;
+  place-items: center;
+  padding: 32px 16px;
+}
+.auth-card { width: min(420px, 100%); }
+.auth-logo { display: block; margin: 0 auto 12px; border-radius: 12px; }
+.auth-card h1 { text-align: center; }
+.auth-card .hint { text-align: center; }
+.auth-links { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-top: 14px; }
+.auth-loading { color: var(--muted); display: none; }
+.auth-screen.checking .auth-card { display: none; }
+.auth-screen.checking .auth-loading { display: block; }
+.notice-ok { background: var(--ok-bg); color: var(--ok); }
+
+input[type="email"] {
+  width: 100%;
+  font: inherit;
+  font-size: 0.95rem;
+  color: var(--text);
+  background: var(--input);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+
+.user-box { display: flex; align-items: center; gap: 8px; }
+.user-email { font-size: 0.85rem; opacity: 0.85; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@media (max-width: 600px) { .user-email { display: none; } }
